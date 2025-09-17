@@ -5,12 +5,9 @@ import (
 	"bytes"
 	"os/exec"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 )
-
-var operatedList = make([]string, 0)
 
 func main() {
 	cmd := exec.Command("niri", "msg", "event-stream")
@@ -19,7 +16,6 @@ func main() {
 
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
-		// "Window opened or changed: ..."
 		output := scanner.Text()
 		lines := strings.Split(output, "\n")
 		for i := len(lines) - 1; i >= 0; i-- {
@@ -28,31 +24,28 @@ func main() {
 			if isWindowOpen {
 				tryCenterWindow()
 			}
+			isWindowClose, _ := regexp.MatchString("^Window closed: ", line)
+			if isWindowClose {
+				tryCenterWindow()
+			}
 		}
 	}
 }
 
 func tryCenterWindow() {
-
-	getWinCmd := exec.Command("niri", "msg", "windows")
-	getWinOutputData, _ := getWinCmd.CombinedOutput()
-
+	getwinCmd := exec.Command("niri", "msg", "windows")
+	getwinOutputData, _ := getwinCmd.CombinedOutput()
 	emptyLineRegexp := regexp.MustCompile(`\n\n+`)
-	winList := emptyLineRegexp.Split(string(getWinOutputData), -1)
+	winList := emptyLineRegexp.Split(string(getwinOutputData), -1)
 
 	// find focused
-	// "Window ID 1344: (focused)"
 	for i := len(winList) - 1; i >= 0; i-- {
 		curWin := winList[i]
 
+		// "Window ID 1344: (focused)"
 		isFocusedWin, _ := regexp.MatchString(`^Window\sID\s\d+:\s\(focused\)`, curWin)
 		if isFocusedWin {
-
 			curWinLines := strings.Split(curWin, "\n")
-			head := curWinLines[0]
-			lineParts := strings.Split(head, " ")
-			winID := lineParts[2][:len(lineParts[2])-1]
-
 			workspaceIDLine := ""
 			// find Workspace ID line
 			for _, line := range curWinLines {
@@ -62,14 +55,11 @@ func tryCenterWindow() {
 					break
 				}
 			}
-
 			count := getWorkspaceWindowCount(workspaceIDLine)
-			lineParts = strings.Split(workspaceIDLine, " ")
-			if count == 1 && slices.Contains(operatedList, winID) == false {
-				// operatedList = append(operatedList, winID)
+			if count == 1 {
 				exec.Command("niri", "msg", "action", "center-column").Start()
+				break
 			}
-
 		}
 	}
 }
