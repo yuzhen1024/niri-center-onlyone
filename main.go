@@ -8,7 +8,7 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-var debounce = NewDebounce(time.Millisecond * 100)
+var debounce = NewDebounce(time.Millisecond * 50)
 var count = 0
 
 func main() {
